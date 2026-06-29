@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My AI Study Helper</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background-color: #f0f4f8;
+      font-family: Arial, sans-serif;
+    }
+
+    /* ── API Key Banner ── */
+    #api-banner {
+      background: #fff3cd;
+      border-bottom: 1px solid #ffc107;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #api-banner label {
+      font-size: 13px;
+      font-weight: bold;
+      color: #856404;
+      white-space: nowrap;
+    }
+    #api-key-input {
+      flex: 1;
+      min-width: 220px;
+      padding: 6px 10px;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    #api-key-input:focus { border-color: #4a90d9; }
+    #save-key-btn {
+      background: #4a90d9;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #save-key-btn:hover { background: #357abd; }
+    #key-status {
+      font-size: 12px;
+      color: #155724;
+      font-weight: bold;
+    }
+
+    /* ── Header ── */
+    #header {
+      background-color: #4a90d9;
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #header h1 { font-size: 22px; font-weight: bold; }
+    #header p  { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    #clear-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.5);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #clear-btn:hover { background: rgba(255,255,255,0.35); }
+
+    /* ── Chat Area ── */
+    #chat-area {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 20px 16px 180px;
+    }
+
+    #empty-state {
+      text-align: center;
+      margin-top: 60px;
+      color: #888;
+    }
+    #empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+    #empty-state p { font-size: 16px; margin-bottom: 8px; }
+    #empty-state small { font-size: 14px; }
+
+    /* ── Message Row ── */
+    .msg-row {
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-end;
+    }
+    .msg-row.user  { justify-content: flex-end; }
+    .msg-row.assistant { justify-content: flex-start; }
+
+    .avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .avatar.bot  { background: #4a90d9; margin-right: 8px; }
+    .avatar.user { background: #e0e0e0; margin-left: 8px; }
+
+    .msg-body { max-width: 80%; }
+
+    .steps-box {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .steps-box .steps-title {
+      font-weight: bold;
+      color: #f57c00;
+      margin-bottom: 6px;
+    }
+    .steps-box .step-line {
+      color: #555;
+      margin-bottom: 4px;
+      padding-left: 4px;
+    }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      font-size: 15px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble.user {
+      background: #4a90d9;
+      color: white;
+      border-radius: 18px 18px 4px 18px;
+    }
+    .bubble.assistant {
+      background: white;
+      color: #333;
+      border-radius: 18px 18px 18px 4px;
+    }
+
+    /* ── Loading ── */
+    #loading-row {
+      display: none;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    #loading-row .avatar { background: #4a90d9; margin-right: 8px; }
+    #loading-bubble {
+      background: white;
+      padding: 10px 16px;
+      border-radius: 18px 18px 18px 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      color: #888;
+      font-size: 14px;
+    }
+
+    /* ── Error ── */
+    #error-box {
+      display: none;
+      background: #ffebee;
+      border: 1px solid #ef9a9a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #c62828;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    /* ── Input Area ── */
+    #input-area {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: white;
+      border-top: 1px solid #ddd;
+      padding: 12px 16px;
+    }
+    #input-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    #msg-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+      resize: none;
+      outline: none;
+      font-family: Arial, sans-serif;
+      line-height: 1.4;
+    }
+    #msg-input:focus { border-color: #4a90d9; }
+    #send-btn {
+      background: #4a90d9;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 15px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #send-btn:disabled {
+      background: #b0bec5;
+      cursor: not-allowed;
+    }
+    #send-btn:not(:disabled):hover { background: #357abd; }
+  </style>
+  <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fmyaichat6740back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.19"></script>
+  <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2"></script>
+  </head>
+<body>
+
+  <!-- API Key Banner -->
+  <div id="api-banner">
+    <label for="api-key-input">🔑 Gemini API Key:</label>
+    <input id="api-key-input" type="password" placeholder="Paste your Gemini API key here..." />
+    <button id="save-key-btn" onclick="saveApiKey()">Save Key</button>
+    <span id="key-status"></span>
+  </div>
+
+  <!-- Header -->
+  <div id="header">
+    <div>
+      <h1>🤖 My AI Study Helper</h1>
+      <p>Ask me anything! I remember our past chats 😊</p>
+    </div>
+    <button id="clear-btn" onclick="clearHistory()">Clear History</button>
+  </div>
+
+  <!-- Chat Area -->
+  <div id="chat-area">
+    <div id="empty-state">
+      <div class="emoji">💬</div>
+      <p>No messages yet!</p>
+      <small>Try asking something like: <em>"Explain photosynthesis"</em> or <em>"How do I solve quadratic equations?"</em></small>
+    </div>
+    <div id="messages"></div>
+    <div id="loading-row">
+      <div class="avatar bot">🤖</div>
+      <div id="loading-bubble">Thinking... ⏳</div>
+    </div>
+    <div id="error-box"></div>
+    <div id="bottom-anchor"></div>
+  </div>
+
+  <!-- Input Area -->
+  <div id="input-area">
+    <div id="input-inner">
+      <textarea
+        id="msg-input"
+        rows="2"
+        placeholder="Type your question here... (Press Enter to send)"
+        onkeydown="handleKeyDown(event)"
+      ></textarea>
+      <button id="send-btn" onclick="handleSend()" disabled>Send ✈️</button>
+    </div>
+  </div>
+
+  <script>
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const STORAGE_KEY   = 'myai_chat_history';
+    const API_KEY_STORE = 'myai_gemini_key';
+    const MAX_STORED    = 30;
+    const GEMINI_MODEL  = 'gemini-2.5-flash';
+
+    const SYSTEM_PROMPT = `You are a helpful AI assistant for students. You answer questions clearly and helpfully.
+
+When a user asks a complex question that requires multiple steps of reasoning, ALWAYS start your response with a "Thinking through this step by step:" section where you break down your reasoning into numbered steps (like Step 1:, Step 2:, Step 3:, etc.). Then provide your final answer after the steps.
+
+For simple questions, just answer directly without the step-by-step breakdown.
+
+Be friendly, encouraging, and easy to understand. You're helping students learn.`;
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let messages  = [];   // { role, content, steps? }
+    let isLoading = false;
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    (function init() {
+      // Restore API key
+      const savedKey = localStorage.getItem(API_KEY_STORE);
+      if (savedKey) {
+        document.getElementById('api-key-input').value = savedKey;
+        document.getElementById('key-status').textContent = '✅ Key loaded';
+      }
+
+      // Restore chat history
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          messages = JSON.parse(stored);
+          renderMessages();
+        }
+      } catch(e) { /* ignore */ }
+
+      updateSendBtn();
+      document.getElementById('msg-input').addEventListener('input', updateSendBtn);
+    })();
+
+    // ── API Key ────────────────────────────────────────────────────────────────
+    function saveApiKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (!key) {
+        document.getElementById('key-status').textContent = '⚠️ Please enter a key';
+        return;
+      }
+      localStorage.setItem(API_KEY_STORE, key);
+      document.getElementById('key-status').textContent = '✅ Key saved!';
+    }
+
+    function getApiKey() {
+      return document.getElementById('api-key-input').value.trim()
+          || localStorage.getItem(API_KEY_STORE)
+          || '';
+    }
+
+    // ── Parse Steps ────────────────────────────────────────────────────────────
+    function parseSteps(content) {
+      const stepPattern = /Thinking through this step by step:([\s\S]*?)(?=\n\n(?!Step \d)|$)/i;
+      const match = content.match(stepPattern);
+      if (!match) return { steps: [], answer: content };
+
+      const stepsBlock = match[1];
+      const stepLines = stepsBlock
+        .split('\n')
+        .filter(line => /^Step \d+:/i.test(line.trim()))
+        .map(line => line.trim());
+
+      const answerStart = content.indexOf(match[0]) + match[0].length;
+      const answer = content.slice(answerStart).trim();
+
+      return { steps: stepLines, answer };
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+    function renderMessages() {
+      const container = document.getElementById('messages');
+      const emptyState = document.getElementById('empty-state');
+
+      if (messages.length === 0) {
+        emptyState.style.display = 'block';
+        container.innerHTML = '';
+        return;
+      }
+      emptyState.style.display = 'none';
+
+      container.innerHTML = messages.map((msg, i) => {
+        if (msg.role === 'user') {
+          return `
+            <div class="msg-row user">
+              <div class="msg-body">
+                <div class="bubble user">${escapeHtml(msg.content)}</div>
+              </div>
+              <div class="avatar user">👤</div>
+            </div>`;
+        }
+
+        const stepsHtml = (msg.steps && msg.steps.length > 0)
+          ? `<div class="steps-box">
+               <div class="steps-title">🧠 Thinking through this...</div>
+               ${msg.steps.map(s => `<div class="step-line">${escapeHtml(s)}</div>`).join('')}
+             </div>`
+          : '';
+
+        return `
+          <div class="msg-row assistant">
+            <div class="avatar bot">🤖</div>
+            <div class="msg-body">
+              ${stepsHtml}
+              <div class="bubble assistant">${escapeHtml(msg.content)}</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      scrollToBottom();
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function scrollToBottom() {
+      setTimeout(() => {
+        document.getElementById('bottom-anchor').scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    }
+
+    // ── Send ───────────────────────────────────────────────────────────────────
+    function updateSendBtn() {
+      const btn   = document.getElementById('send-btn');
+      const input = document.getElementById('msg-input');
+      btn.disabled = isLoading || !input.value.trim();
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    }
+
+    async function handleSend() {
+      const input   = document.getElementById('msg-input');
+      const trimmed = input.value.trim();
+      if (!trimmed || isLoading) return;
+
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        showError('⚠️ Please enter your Gemini API key at the top of the page.');
+        return;
+      }
+
+      // Add user message
+      messages.push({ role: 'user', content: trimmed });
+      input.value = '';
+      saveHistory();
+      renderMessages();
+      setLoading(true);
+      hideError();
+
+      // Build Gemini request
+      const geminiMessages = [
+        { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\nUser: ' + trimmed }] }
+      ];
+
+      // Build full history for context (last 20 turns)
+      const historyForApi = messages.slice(-20);
+      const contents = buildGeminiContents(historyForApi);
+
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: contents,
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || `HTTP ${res.status}`;
+          throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        if (!responseText) throw new Error('Empty response from Gemini.');
+
+        const { steps, answer } = parseSteps(responseText);
+        messages.push({
+          role: 'assistant',
+          content: answer || responseText,
+          steps: steps.length > 0 ? steps : undefined
+        });
+
+        saveHistory();
+        renderMessages();
+      } catch (err) {
+        showError('⚠️ ' + (err.message || 'Something went wrong. Check your API key.'));
+        // Remove the user message we just added so they can retry
+        messages.pop();
+        renderMessages();
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Build Gemini-format contents array from message history
+    function buildGeminiContents(msgs) {
+      // Gemini alternates user/model roles
+      const contents = [];
+      for (const msg of msgs) {
+        const role = msg.role === 'assistant' ? 'model' : 'user';
+        contents.push({ role, parts: [{ text: msg.content }] });
+      }
+      // Ensure it starts with user
+      if (contents.length > 0 && contents[0].role !== 'user') {
+        contents.shift();
+      }
+      return contents;
+    }
+
+    // ── History ────────────────────────────────────────────────────────────────
+    function saveHistory() {
+      try {
+        const toStore = messages.slice(-MAX_STORED);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      } catch(e) { /* ignore */ }
+    }
+
+    function clearHistory() {
+      messages = [];
+      localStorage.removeItem(STORAGE_KEY);
+      renderMessages();
+    }
+
+    // ── UI Helpers ─────────────────────────────────────────────────────────────
+    function setLoading(val) {
+      isLoading = val;
+      document.getElementById('loading-row').style.display = val ? 'flex' : 'none';
+      document.getElementById('msg-input').disabled = val;
+      updateSendBtn();
+      if (val) scrollToBottom();
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('error-box');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('error-box').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
